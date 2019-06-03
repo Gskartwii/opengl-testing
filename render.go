@@ -13,19 +13,24 @@ import (
 
 const vertexShaderSrc = `#version 330 core
 layout (location = 0) in vec3 aPos;
+layout (location = 1) in vec3 aColor;
 
 uniform mat4 model;
 uniform mat4 view;
 uniform mat4 projection;
 
+out vec3 ourColor;
+
 void main() {
 	gl_Position = projection * view * model * vec4(aPos, 1.0);
+	ourColor = aColor;
 }` + "\x00"
 
 const fragmentShaderSrc = `#version 330 core
+in vec3 ourColor;
 out vec4 FragColor;
 void main() {
-	FragColor = vec4(1.0f, 0.0f, 0.0f, 1.0f);
+	FragColor = vec4(ourColor, 1.0f);
 }` + "\x00"
 
 func init() {
@@ -111,16 +116,63 @@ func main() {
 	}
 
 	vertices := [...]float32{
-		0.5, 0.5, 0.0, // front top right
-		0.5, -.5, 0.0, // front bottom right
-		-.5, -.5, 0.0, // front bottom left
-		-.5, 0.5, 0.0, // front top left
+		-0.5, -0.5, -0.5, 1.0, 0.0, 0.0,
+		0.5, -0.5, -0.5, 1.0, 0.0, 0.0,
+		0.5, 0.5, -0.5, 1.0, 0.0, 0.0,
+		0.5, 0.5, -0.5, 1.0, 0.0, 0.0,
+		-0.5, 0.5, -0.5, 1.0, 0.0, 0.0,
+		-0.5, -0.5, -0.5, 1.0, 0.0, 0.0,
+
+		-0.5, -0.5, 0.5, 0.0, 1.0, 0.0,
+		0.5, -0.5, 0.5, 0.0, 1.0, 0.0,
+		0.5, 0.5, 0.5, 0.0, 1.0, 0.0,
+		0.5, 0.5, 0.5, 0.0, 1.0, 0.0,
+		-0.5, 0.5, 0.5, 0.0, 1.0, 0.0,
+		-0.5, -0.5, 0.5, 0.0, 1.0, 0.0,
+
+		-0.5, 0.5, 0.5, 0.0, 0.0, 1.0,
+		-0.5, 0.5, -0.5, 0.0, 0.0, 1.0,
+		-0.5, -0.5, -0.5, 0.0, 0.0, 1.0,
+		-0.5, -0.5, -0.5, 0.0, 0.0, 1.0,
+		-0.5, -0.5, 0.5, 0.0, 0.0, 1.0,
+		-0.5, 0.5, 0.5, 0.0, 0.0, 1.0,
+
+		0.5, 0.5, 0.5, 1.0, 1.0, 0.0,
+		0.5, 0.5, -0.5, 1.0, 1.0, 0.0,
+		0.5, -0.5, -0.5, 1.0, 1.0, 0.0,
+		0.5, -0.5, -0.5, 1.0, 1.0, 0.0,
+		0.5, -0.5, 0.5, 1.0, 1.0, 0.0,
+		0.5, 0.5, 0.5, 1.0, 1.0, 0.0,
+
+		-0.5, -0.5, -0.5, 1.0, 0.0, 1.0,
+		0.5, -0.5, -0.5, 1.0, 0.0, 1.0,
+		0.5, -0.5, 0.5, 1.0, 0.0, 1.0,
+		0.5, -0.5, 0.5, 1.0, 0.0, 1.0,
+		-0.5, -0.5, 0.5, 1.0, 0.0, 1.0,
+		-0.5, -0.5, -0.5, 1.0, 0.0, 1.0,
+
+		-0.5, 0.5, -0.5, 0.0, 1.0, 1.0,
+		0.5, 0.5, -0.5, 0.0, 1.0, 1.0,
+		0.5, 0.5, 0.5, 0.0, 1.0, 1.0,
+		0.5, 0.5, 0.5, 0.0, 1.0, 1.0,
+		-0.5, 0.5, 0.5, 0.0, 1.0, 1.0,
+		-0.5, 0.5, -0.5, 0.0, 1.0, 1.0,
 	}
-	indices := [...]uint32{
-		// front side square: 0,1,2,3
-		0, 1, 2,
-		0, 2, 3,
+
+	cubePositions := [...]mgl32.Vec3{
+		mgl32.Vec3{0, 0, 0},
+		mgl32.Vec3{2, 5, -15},
+		mgl32.Vec3{-1.5, -2.2, -2.5},
+		mgl32.Vec3{-3.8, -2, -12.3},
+		mgl32.Vec3{2.4, -0.4, -3.5},
+		mgl32.Vec3{-1.7, 3, -7.5},
+		mgl32.Vec3{1.3, -2, -2.5},
+		mgl32.Vec3{1.5, 2, -2.5},
+		mgl32.Vec3{1.5, 0.2, -1.5},
+		mgl32.Vec3{-1.3, 1, -1.5},
 	}
+
+	gl.Enable(gl.DEPTH_TEST)
 
 	var VBO, VAO, EBO uint32
 	gl.GenVertexArrays(1, &VAO)
@@ -131,11 +183,11 @@ func main() {
 	gl.BindBuffer(gl.ARRAY_BUFFER, VBO)
 	gl.BufferData(gl.ARRAY_BUFFER, len(vertices)*4, unsafe.Pointer(&vertices[0]), gl.STATIC_DRAW)
 
-	gl.BindBuffer(gl.ELEMENT_ARRAY_BUFFER, EBO)
-	gl.BufferData(gl.ELEMENT_ARRAY_BUFFER, len(indices)*4, unsafe.Pointer(&indices[0]), gl.STATIC_DRAW)
-
-	gl.VertexAttribPointer(0, 3, gl.FLOAT, false, 3*4, gl.PtrOffset(0))
+	gl.VertexAttribPointer(0, 3, gl.FLOAT, false, 6*4, gl.PtrOffset(0))
 	gl.EnableVertexAttribArray(0)
+
+	gl.VertexAttribPointer(1, 3, gl.FLOAT, false, 6*4, gl.PtrOffset(3*4))
+	gl.EnableVertexAttribArray(1)
 
 	gl.BindBuffer(gl.ARRAY_BUFFER, 0)
 	gl.BindVertexArray(0)
@@ -149,19 +201,25 @@ func main() {
 			window.SetShouldClose(true)
 		}
 
-		gl.ClearColor(0.0, 1.0, 0.0, 1.0)
-		gl.Clear(gl.COLOR_BUFFER_BIT)
+		gl.ClearColor(0.0, 0.0, 0.0, 1.0)
+		gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 
 		gl.BindVertexArray(VAO)
 		gl.UseProgram(shaderProgram)
 
-		model := mgl32.HomogRotate3D(mgl32.DegToRad(-55.0), mgl32.Vec3{1.0, 0.0, 0.0})
-		view := mgl32.Translate3D(0.0, 0.0, -3.0)
-		projection := mgl32.Perspective(mgl32.DegToRad(45.0), 800.0/640.0, 0.1, 100.0)
-		gl.UniformMatrix4fv(modelLocation, 1, false, &model[0])
+		view := mgl32.Ident4().Mul4(mgl32.Translate3D(0.0, 0.0, -3.0))
+		projection := mgl32.Ident4().Mul4(mgl32.Perspective(mgl32.DegToRad(45.0), 800.0/640.0, 0.1, 100.0))
 		gl.UniformMatrix4fv(viewLocation, 1, false, &view[0])
 		gl.UniformMatrix4fv(projectionLocation, 1, false, &projection[0])
-		gl.DrawElements(gl.TRIANGLES, 6, gl.UNSIGNED_INT, gl.PtrOffset(0))
+
+		for i := 0; i < 10; i++ {
+			angle := 20.0*float32(i) + float32(glfw.GetTime())*50.0
+			model := mgl32.Ident4()
+			model = model.Mul4(mgl32.Translate3D(cubePositions[i][0], cubePositions[i][1], cubePositions[i][2]))
+			model = model.Mul4(mgl32.HomogRotate3D(mgl32.DegToRad(angle), mgl32.Vec3{0.5, 1.0, 0.0}.Normalize()))
+			gl.UniformMatrix4fv(modelLocation, 1, false, &model[0])
+			gl.DrawArrays(gl.TRIANGLES, 0, 36)
+		}
 
 		window.SwapBuffers()
 		glfw.PollEvents()
