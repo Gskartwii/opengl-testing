@@ -8,24 +8,24 @@ import (
 
 	"github.com/go-gl/gl/v3.3-core/gl"
 	"github.com/go-gl/glfw/v3.2/glfw"
+	"github.com/go-gl/mathgl/mgl32"
 )
 
 const vertexShaderSrc = `#version 330 core
 layout (location = 0) in vec3 aPos;
+
+uniform mat4 model;
+uniform mat4 view;
+uniform mat4 projection;
+
 void main() {
-	gl_Position = vec4(aPos.x, aPos.y, aPos.z, 1.0);
+	gl_Position = projection * view * model * vec4(aPos, 1.0);
 }` + "\x00"
 
 const fragmentShaderSrc = `#version 330 core
 out vec4 FragColor;
 void main() {
 	FragColor = vec4(1.0f, 0.0f, 0.0f, 1.0f);
-}` + "\x00"
-
-const yellowFragSrc = `#version 330 core
-out vec4 FragColor;
-void main() {
-	FragColor = vec4(1.0f, 1.0f, 0.0f, 1.0f);
 }` + "\x00"
 
 func init() {
@@ -56,11 +56,11 @@ func compileShader(src string, shaderType uint32) (uint32, error) {
 func createProgram(vertexSrc string, fragmentSrc string) (uint32, error) {
 	vertexShader, err := compileShader(vertexSrc, gl.VERTEX_SHADER)
 	if err != nil {
-		panic(err)
+		return 0, err
 	}
 	fragmentShader, err := compileShader(fragmentSrc, gl.FRAGMENT_SHADER)
 	if err != nil {
-		panic(err)
+		return 0, err
 	}
 
 	shaderProgram := gl.CreateProgram()
@@ -105,24 +105,21 @@ func main() {
 		panic(err)
 	}
 
-	redShaderProgram, err := createProgram(vertexShaderSrc, fragmentShaderSrc)
-	if err != nil {
-		panic(err)
-	}
-	yellowShaderProgram, err := createProgram(vertexShaderSrc, yellowFragSrc)
+	shaderProgram, err := createProgram(vertexShaderSrc, fragmentShaderSrc)
 	if err != nil {
 		panic(err)
 	}
 
 	vertices := [...]float32{
-		0.5, 0.5, 0.0, // top right
-		0.5, -.5, 0.0, // bottom right
-		-.5, -.5, 0.0, // bottom left
-		1.0, -.5, 0.0, // further bottom right
+		0.5, 0.5, 0.0, // front top right
+		0.5, -.5, 0.0, // front bottom right
+		-.5, -.5, 0.0, // front bottom left
+		-.5, 0.5, 0.0, // front top left
 	}
 	indices := [...]uint32{
+		// front side square: 0,1,2,3
 		0, 1, 2,
-		0, 1, 3,
+		0, 2, 3,
 	}
 
 	var VBO, VAO, EBO uint32
@@ -143,6 +140,10 @@ func main() {
 	gl.BindBuffer(gl.ARRAY_BUFFER, 0)
 	gl.BindVertexArray(0)
 
+	modelLocation := gl.GetUniformLocation(shaderProgram, gl.Str("model\x00"))
+	viewLocation := gl.GetUniformLocation(shaderProgram, gl.Str("view\x00"))
+	projectionLocation := gl.GetUniformLocation(shaderProgram, gl.Str("projection\x00"))
+
 	for !window.ShouldClose() {
 		if window.GetKey(glfw.KeyEscape) == glfw.Press {
 			window.SetShouldClose(true)
@@ -152,10 +153,15 @@ func main() {
 		gl.Clear(gl.COLOR_BUFFER_BIT)
 
 		gl.BindVertexArray(VAO)
-		gl.UseProgram(redShaderProgram)
-		gl.DrawElements(gl.TRIANGLES, 3, gl.UNSIGNED_INT, gl.PtrOffset(0))
-		gl.UseProgram(yellowShaderProgram)
-		gl.DrawElements(gl.TRIANGLES, 3, gl.UNSIGNED_INT, gl.PtrOffset(3*4))
+		gl.UseProgram(shaderProgram)
+
+		model := mgl32.HomogRotate3D(mgl32.DegToRad(-55.0), mgl32.Vec3{1.0, 0.0, 0.0})
+		view := mgl32.Translate3D(0.0, 0.0, -3.0)
+		projection := mgl32.Perspective(mgl32.DegToRad(45.0), 800.0/640.0, 0.1, 100.0)
+		gl.UniformMatrix4fv(modelLocation, 1, false, &model[0])
+		gl.UniformMatrix4fv(viewLocation, 1, false, &view[0])
+		gl.UniformMatrix4fv(projectionLocation, 1, false, &projection[0])
+		gl.DrawElements(gl.TRIANGLES, 6, gl.UNSIGNED_INT, gl.PtrOffset(0))
 
 		window.SwapBuffers()
 		glfw.PollEvents()
