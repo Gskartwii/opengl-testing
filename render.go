@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"math"
 	"runtime"
 	"strings"
 	"unsafe"
@@ -207,15 +208,20 @@ func main() {
 		gl.BindVertexArray(VAO)
 		gl.UseProgram(shaderProgram)
 
-		view := mgl32.Ident4().Mul4(mgl32.Translate3D(0.0, 0.0, -3.0))
+		camX := float32(math.Sin(glfw.GetTime())) * 10.0
+		camZ := float32(math.Cos(glfw.GetTime())) * 10.0
+		view := mgl32.LookAt(camX, 0, camZ, 0, 0, 0, 0, 1, 0)
 		projection := mgl32.Ident4().Mul4(mgl32.Perspective(mgl32.DegToRad(45.0), 800.0/640.0, 0.1, 100.0))
 		gl.UniformMatrix4fv(viewLocation, 1, false, &view[0])
 		gl.UniformMatrix4fv(projectionLocation, 1, false, &projection[0])
 
 		for i := 0; i < 10; i++ {
-			angle := 20.0*float32(i) + float32(glfw.GetTime())*50.0
+			angle := 20.0 * float32(i)
 			model := mgl32.Ident4()
 			model = model.Mul4(mgl32.Translate3D(cubePositions[i][0], cubePositions[i][1], cubePositions[i][2]))
+			if i%3 == 0 {
+				angle += float32(glfw.GetTime()) * 50.0
+			}
 			model = model.Mul4(mgl32.HomogRotate3D(mgl32.DegToRad(angle), mgl32.Vec3{0.5, 1.0, 0.0}.Normalize()))
 			gl.UniformMatrix4fv(modelLocation, 1, false, &model[0])
 			gl.DrawArrays(gl.TRIANGLES, 0, 36)
